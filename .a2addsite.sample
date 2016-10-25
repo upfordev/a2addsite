@@ -1,14 +1,30 @@
 # Sample values for a2addsite configuration variables
+# Make a copy of this file under ~/.a2addsite and edit as fit for your system and preferences
 
-# Apache web server's data
+## Apache web server's data. These defaults probably work for Debian based linux distros
+
+# Name of the service to control the web server
 APACHE_SERVICE='apache2'
+
+# Where does apache store log files by default?
 APACHE_LOG_DIR='/var/log/apache2'
+
+# Where does apache reads available sites from
 APACHE_SITES_DIR='/etc/apache2/sites-available'
 
-# Your Projects directory
-PROJECTS_DIR='/home/projects'
+## Your Projects directory
 
-# Your Project's structure
+# This is where, unless overriden by command's --proj_dir paramater value, the directory structure to contain
+# configuration, logs and code for your vhost is created
+PROJECTS_DIR='/home/user/projects'
+
+## Your Project's structure
+
+# config files will go here
 ETC_DIR='etc'
+
+# log files here
 LOG_DIR='logs'
+
+# source code in here
 SOURCE_DIR='source'
