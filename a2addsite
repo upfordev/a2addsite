@@ -1,0 +1,262 @@
+#!/bin/bash
+
+# Colors for console outputs
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# Prompt user for input. Read and print what the user inputted.
+function read_prompt {
+	# $1 what do we want from the user?
+	# $2 default value to be printed when nothing inputted
+	# $3 do not print input as typed, for password inputs
+	local message="$1" default="$2" silent="$3" var="" command="read"
+	if [ "$silent" == 'silent' ]; then command="$command -s"; fi
+	$command -p "$message" var
+	if [ -z "$var" ]; then var="$default"; fi
+	echo "$var"
+}
+
+# Simple y/n prompt (use $3 to determine whether to die on "n" or simply return 1)
+function proceed_prompt {
+	# $1 what do we want from the user?
+	# $2 default value to be printed when nothing inputted
+	# $3 message to print before exiting. Don't exit if not available
+	proceed='n'
+	while [ ! "$proceed" == 'y' ]; do
+		proceed=$(read_prompt "$1" "$2")
+		if [ "$proceed" == "n" ]; then
+			if [ ! -z "$3" ]; then
+				die "$3"
+			else
+				return 1
+			fi
+		fi
+	done
+	return 0
+}
+
+# Returns 0 only when all arguments are non-empty
+function validate_not_empty {
+	for var in "$@"; do
+		if [ -z "$var" ]; then
+			return 1
+		fi
+	done
+	return 0
+}
+
+# Print success message
+function ok {
+	echo -e "${GREEN}$1${NC}"
+}
+
+# Print warning
+function warn {
+	echo -e "${YELLOW}$1${NC}"
+}
+
+# Print error
+function error {
+	echo -e "${RED}$1${NC}"
+}
+
+# Echo $1 and exit
+function die {
+	error "$1"
+	exit 1
+}
+
+# Sudo permissions required
+if [ ! "$USER" == 'root' ]; then
+	warn "Some of the commands this script executes usually require root privileges. Running with sudo is recommended"
+	proceed_prompt "Do you want to proceed? (y/n) " "" "Interrupted by user"
+fi
+
+echo "Reading config... "
+. $HOME/.a2addsite
+if [ $? == 0 ]; then
+	ok "Done"
+else
+	error "Could not read config file"
+fi
+
+# Parse command options
+while [[ ${1} ]]; do
+	case "${1}" in
+		# project's dir
+		--proj_dir)
+			proj_dir=${2}
+			shift
+			;;
+		# project's name
+		--proj_name)
+			proj_name=${2}
+			shift
+			;;
+		# domain's name
+		--domain_name)
+			domain_name=${2}
+			shift
+			;;
+		# catch all for unknown options
+		*)
+			echo "Unknown parameter: ${1}" >&2
+	esac
+
+	if ! shift; then
+		echo 'Missing parameter argument.' >&2
+	fi
+done
+
+# Optional command line arguments
+# When not available, try reading from config
+if [ -z "$proj_dir" ] && ! [ -z "$PROJECTS_DIR" ]; then
+	proj_dir="$PROJECTS_DIR"
+fi
+
+# Output all arguments for user to check if they look ok
+echo "Please review the following parameters values and make sure they match your expectations before proceeding:"
+
+warn "Apache data (read from $HOME/.a2addsite):"
+echo "Service: $APACHE_SERVICE"
+echo "Log directory: $APACHE_LOG_DIR"
+echo "Sites directory: $APACHE_SITES_DIR"
+
+warn "Project's data:"
+echo "Projects directory: $proj_dir"
+echo "Name: $proj_name"
+echo "Etc directory: $ETC_DIR"
+echo "Logs directory: $LOG_DIR"
+echo "Sources directory: $SOURCE_DIR"
+
+warn "Domain's data:"
+echo "Name: $domain_name"
+
+# Prompt user to confirm before proceeding
+proceed_prompt "Do you want to proceed? (y/n) " "" "Interrupted by user"
+
+# We're moving forward only if we have all the params we need
+validate_not_empty "$APACHE_SERVICE" "$APACHE_LOG_DIR" "$APACHE_SITES_DIR" "$proj_dir" "$proj_name" "$ETC_DIR" "$LOG_DIR" "$SOURCE_DIR" "$domain_name"
+if ! [ $? == 0 ]; then
+	die "At least one argument required for this script to execute is missing. Go read the docs, correct and retry"
+fi
+
+echo "Creating projects's directories..."
+proj_path="$proj_dir/$proj_name"
+mkdir -p $proj_path/$ETC_DIR $proj_path/$LOG_DIR $proj_path/$SOURCE_DIR $APACHE_LOG_DIR/$proj_name
+if [ $? == 0 ]; then
+	tree -L 1 $proj_path
+	tree -L 1 $APACHE_LOG_DIR/$proj_name
+	ok "Done"
+else
+	die "Could not create project's directories"
+fi
+
+echo "Creating symlink from project's log dir to project's apache logs..."
+# If the file already exists
+if [ -e $proj_path/$LOG_DIR/apache ]; then
+	warn "Skipping symlink creation. File already exists"
+else
+	# Link doesn't exist, create it
+	ln -s $APACHE_LOG_DIR/$proj_name $proj_path/$LOG_DIR/apache
+	if [ $? == 0 ]; then
+		ok "Done"
+	else
+		error "Could not create symlink"
+	fi
+fi
+
+echo "Creating apache virtualhost configuration file..."
+# If the file already exists
+if [ -e $proj_path/$ETC_DIR/apache.conf ]; then
+	warn "Skipping virtualhost file creation. File already exists"
+else
+cat >$proj_path/$ETC_DIR/apache.conf <<EOL
+	<VirtualHost *:80>
+		ServerName $domain_name
+		ServerAlias www.$domain_name
+		DocumentRoot $proj_path/$SOURCE_DIR
+
+		<Directory $proj_path/$SOURCE_DIR>
+			Require all granted
+			AllowOverride All
+		</Directory>
+
+		LogLevel warn
+		ErrorLog $APACHE_LOG_DIR/$proj_name/error.log
+		CustomLog $APACHE_LOG_DIR/$proj_name/access.log combined
+	</VirtualHost>
+EOL
+	if [ $? == 0 ]; then
+		ok "Done"
+	else
+		die "Could not create apache virtualhost configuration file"
+	fi
+fi
+
+echo "Creating index html file..."
+# If the file already exists
+if [ -e $proj_path/$SOURCE_DIR/index.html ]; then
+	warn "Skipping index html file creation. File already exists"
+else
+cat >$proj_path/$SOURCE_DIR/index.html <<EOL
+	<html>
+		<head>
+			<title>$domain_name</title>
+		</head>
+		<body>
+			$domain_name
+		</body>
+	</html>
+EOL
+	if [ $? == 0 ]; then
+		ok "Done"
+	else
+		error "Could not create index.html file"
+	fi
+fi
+
+echo "Setting permissions..."
+chown -R $SUDO_USER:$SUDO_USER $proj_path
+if [ $? == 0 ]; then
+	ok "Done"
+else
+	error "Could not set permissions"
+fi
+
+echo "Creating apache site..."
+# If the file already exists
+if [ -e $APACHE_SITES_DIR/$domain_name.conf ]; then
+	warn "Skipping apache site creation. File already exists"
+else
+	ln -s $proj_path/$ETC_DIR/apache.conf $APACHE_SITES_DIR/$domain_name.conf
+	if [ $? == 0 ]; then
+		ok "Done"
+	else
+		error "Could not create apache site"
+	fi
+fi
+
+proceed_prompt "Do you want to enable the site? (y/n) " ""
+if [ $? == 0 ]; then
+	a2ensite $domain_name
+	if [ $? == 0 ]; then
+		ok "Site enabled"
+	else
+		error "Could not enable site"
+	fi
+fi
+
+proceed_prompt "Do you want to reload apache now? (y/n) " ""
+if [ $? == 0 ]; then
+	service $APACHE_SERVICE reload
+	if [ $? == 0 ]; then
+		ok "Done"
+	else
+		error "Could not reload apache"
+	fi
+fi
+
+exit 0

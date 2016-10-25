@@ -1,0 +1,14 @@
+# Sample values for a2addsite configuration variables
+
+# Apache web server's data
+APACHE_SERVICE='apache2'
+APACHE_LOG_DIR='/var/log/apache2'
+APACHE_SITES_DIR='/etc/apache2/sites-available'
+
+# Your Projects directory
+PROJECTS_DIR='/home/projects'
+
+# Your Project's structure
+ETC_DIR='etc'
+LOG_DIR='logs'
+SOURCE_DIR='source'
