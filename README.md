@@ -39,4 +39,8 @@ And then some? the idea of each virtualhost being a *project* is at the heart of
 
 **DOMAIN_NAME:** will be used for setting the ServerName in the virtualhost configuration
 
-**I.e:** `sudo a2addsite --proj_dir /home/user/my-projects --proj_name coolProject --domain_name coolproj.com`
+**I.e:**
+
+`sudo a2addsite --proj_dir /home/user/my-projects --proj_name coolProject --domain_name coolproj.com`
+
+Then, assuming *coolproj.com* resolves to your web server's ip address and you have enabled the vhost and reloaded apache when prompted by the script, your server should respond with the sample index page to incoming GET requests for *coolproj.com*
