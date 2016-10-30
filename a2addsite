@@ -180,7 +180,6 @@ else
 cat >$proj_path/$ETC_DIR/apache.conf <<EOL
 	<VirtualHost *:80>
 		ServerName $domain_name
-		ServerAlias www.$domain_name
 		DocumentRoot $proj_path/$SOURCE_DIR
 
 		<Directory $proj_path/$SOURCE_DIR>
