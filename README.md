@@ -20,17 +20,17 @@ And then some? the idea of each virtualhost being a *project* is at the heart of
 - A logs directory to store a symlink to where your vhost's apache logs live
 - A source directory, which will be the root of your vhost, with an index file to test it out right away
 
-##Installation
+## Installation
 1. Clone this repository
 2. `sudo cp a2addsite/a2addsite /usr/local/bin/`
 3. `sudo ln -s /usr/local/bin/a2addsite /bin/a2addsite`
 4. `sudo chmod +x  /usr/local/bin/a2addsite`
 
-##Configuration
+## Configuration
 1. `cp a2addsite/.a2addsite.sample ~/.a2addsite`
 2. Edit ~/.a2addsite making sure the configuration values match your system and preferences (use comments in the file as guidance)
 
-##Usage
+## Usage
 `sudo a2addsite --proj_dir [PROJ_DIR] --proj_name [PROJ_NAME] --domain_name [DOMAIN_NAME]`
 
 **PROJ_DIR:** the absolute path to the directory under which you want the project's directory to be created. **Optional**, can be provided via configuration file
