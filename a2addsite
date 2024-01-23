@@ -83,7 +83,7 @@ else
 fi
 
 echo "Reading config... "
-. $HOME/.a2addsite
+. $USER_HOME/.a2addsite
 if [ $? == 0 ]; then
 	ok "Done"
 else
