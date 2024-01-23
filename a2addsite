@@ -76,6 +76,10 @@ function die {
 if [ ! "$USER" == 'root' ]; then
 	warn "Some of the commands this script executes usually require root privileges. Running with sudo is recommended"
 	proceed_prompt "Do you want to proceed? (y/n) " "" "Interrupted by user"
+	USER_HOME=$HOME
+else
+	# https://stackoverflow.com/questions/7358611/get-users-home-directory-when-they-run-a-script-as-root
+	USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
 fi
 
 echo "Reading config... "
@@ -123,7 +127,7 @@ fi
 # Output all arguments for user to check if they look ok
 echo "Please review the following parameters values and make sure they match your expectations before proceeding:"
 
-warn "Apache data (read from $HOME/.a2addsite):"
+warn "Apache data (read from $USER_HOME/.a2addsite):"
 echo "Service: $APACHE_SERVICE"
 echo "Log directory: $APACHE_LOG_DIR"
 echo "Sites directory: $APACHE_SITES_DIR"
